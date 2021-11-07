@@ -1,0 +1,110 @@
+version: "3.8"
+
+services:
+  proxy:
+    image: traefik:v2.5
+    ports:
+      - 80:80
+      - 8080:8080
+    depends_on:
+      - jupyterlab
+      - code
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    # networks:
+    #   - traefik-subdomain
+    command:
+      # - "--log.level=DEBUG"
+      # Traefik will listen on port 8080 by default for API request.
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      # - "--providers.docker.constraints=Label(`traefik.constraint-label-stack`)"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.http.address=:80"
+    labels:
+      - traefik.enable=true
+      # Defines a default docker network to use for connections to all containers.
+      # - traefik.docker.network=${COMPOSE_PROJECT_NAME}_traefik-subdomain
+      # - traefik.constraint-label=traefik-subdomain
+      - traefik.http.routers.proxy.rule=Host(`proxy.${DOMAIN}`)
+      - traefik.http.routers.proxy.entrypoints=http
+      - traefik.http.services.proxy.loadbalancer.server.port=80
+      # - traefik.http.middlewares.limit.buffering.maxRequestBodyBytes=53687091200
+
+  jupyterlab:
+    image: hiennguyen9874/jupyterlab:jupyterlab-ubuntu20.04-cpu-v0.6
+    build:
+      context: jupyterlab
+      dockerfile: Dockerfile
+      args:
+        # https://gitlab.com/nvidia/container-images/cuda/blob/master/doc/supported-tags.md
+        # ROOT_CONTAINER: nvidia/11.3.1-cudnn8-devel-ubuntu20.04
+        ROOT_CONTAINER: ubuntu:focal
+        NB_USER: "hiennx"
+        NB_UID: 1001
+    command:
+      ["start-notebook.sh", "--NotebookApp.password=${JUPYTERLAB_PASSWORD}"]
+    expose:
+      - 8888 # jupyterlab
+    working_dir: "/"
+    user: root
+    ipc: host
+    volumes:
+      - ${WORKSPACE_PATH}:/home/hiennx/workspace
+    # networks:
+    #   - traefik-subdomain
+    # runtime: nvidia
+    environment:
+      NB_USER: "hiennx"
+      NB_UID: 1001
+      CHOWN_HOME: "yes"
+      JUPYTER_ENABLE_LAB: "yes"
+      RESTARTABLE: "yes"
+      GRANT_SUDO: "yes"
+      # NVIDIA_VISIBLE_DEVICES: all
+      # NVIDIA_DRIVER_CAPABILITIES: all
+    restart: unless-stopped
+    labels:
+      - traefik.enable=true
+      # - traefik.docker.network=${COMPOSE_PROJECT_NAME}_traefik-subdomain
+      # - traefik.constraint-label=traefik-subdomain
+      - traefik.http.routers.jupyterlab.rule=Host(`jupyterlab.${DOMAIN}`)
+      - traefik.http.routers.jupyterlab.entrypoints=http
+      - traefik.http.services.jupyterlab.loadbalancer.server.port=8888
+
+  code:
+    image: hiennguyen9874/jupyterlab:code-server-ubuntu20.04-cpu-v0.6
+    build:
+      context: code-server
+      dockerfile: Dockerfile
+      args:
+        # ROOT_CONTAINER: nvidia/11.3.1-cudnn8-devel-ubuntu20.04
+        ROOT_CONTAINER: ubuntu:focal
+        CODE_SERVER_VERSION: ${CODE_SERVER_VERSION}
+        ARCH: amd64
+    expose:
+      - 8080
+    volumes:
+      - ${WORKSPACE_PATH}:/home/coder/project
+      - ./code-server/.config:/root/.config
+      - ./code-server/.extensions:/root/.local/share/code-server
+    # runtime: nvidia
+    ipc: host
+    user: root
+    # networks:
+    #   - traefik-subdomain
+    environment:
+      CHOWN_HOME: utf-8
+      PASSWORD: ${CODE_SERVER_PASSWORD}
+      # NVIDIA_VISIBLE_DEVICES: all
+      # NVIDIA_DRIVER_CAPABILITIES: all
+    restart: unless-stopped
+    labels:
+      - traefik.enable=true
+      # - traefik.docker.network=${COMPOSE_PROJECT_NAME}_traefik-subdomain
+      # - traefik.constraint-label=traefik-subdomain
+      - traefik.http.routers.code.rule=Host(`code.${DOMAIN}`)
+      - traefik.http.routers.code.entrypoints=http
+      - traefik.http.services.code.loadbalancer.server.port=8080
+# networks:
+#   traefik-subdomain:

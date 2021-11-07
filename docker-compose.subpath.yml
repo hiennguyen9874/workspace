@@ -1,0 +1,119 @@
+version: "3.8"
+
+services:
+  proxy:
+    image: traefik:v2.5
+    ports:
+      - 80:80
+      - 8080:8080
+    depends_on:
+      - jupyterlab
+      - code
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    networks:
+      - traefik-public
+    command:
+      # - "--log.level=DEBUG"
+      # Traefik will listen on port 8080 by default for API request.
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      # - "--providers.docker.constraints=Label(`traefik.constraint-label-stack`)"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.http.address=:80"
+    labels:
+      - traefik.enable=true
+      # Defines a default docker network to use for connections to all containers.
+      - traefik.docker.network=${COMPOSE_PROJECT_NAME}_traefik-public
+      - traefik.constraint-label=traefik-public
+      # - traefik.http.routers.proxy.rule=Host(`workspace.localhost`)
+      - traefik.http.routers.proxy.entrypoints=http
+      - traefik.http.services.proxy.loadbalancer.server.port=80
+      - traefik.http.middlewares.limit.buffering.maxRequestBodyBytes=53687091200
+
+  jupyterlab:
+    build:
+      context: jupyterlab
+      dockerfile: Dockerfile
+      args:
+        # https://gitlab.com/nvidia/container-images/cuda/blob/master/doc/supported-tags.md
+        # ROOT_CONTAINER: nvidia/11.3.1-cudnn8-devel-ubuntu20.04
+        ROOT_CONTAINER: ubuntu:focal
+        NB_USER: "hiennx"
+        NB_UID: 1001
+    command:
+      [
+        "start-notebook.sh",
+        "--NotebookApp.base_url=${BASE_URL}/jupyterlab",
+        "--NotebookApp.password=${JUPYTERLAB_PASSWORD}",
+      ]
+    expose:
+      - 8888 # jupyterlab
+    working_dir: "/"
+    user: root
+    ipc: host
+    volumes:
+      - ${WORKSPACE_PATH}:/home/hiennx/workspace
+    networks:
+      - traefik-public
+    # runtime: nvidia
+    environment:
+      NB_USER: "hiennx"
+      NB_UID: 1001
+      CHOWN_HOME: "yes"
+      JUPYTER_ENABLE_LAB: "yes"
+      RESTARTABLE: "yes"
+      GRANT_SUDO: "yes"
+      # NVIDIA_VISIBLE_DEVICES: all
+      # NVIDIA_DRIVER_CAPABILITIES: all
+    restart: unless-stopped
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=${COMPOSE_PROJECT_NAME}_traefik-public
+      - traefik.constraint-label=traefik-public
+      - traefik.http.routers.jupyterlab.rule=PathPrefix(`${BASE_URL}/jupyterlab`)
+      - traefik.http.services.jupyterlab.loadbalancer.server.port=8888
+
+  code:
+    build:
+      context: code-server
+      dockerfile: Dockerfile
+      args:
+        # ROOT_CONTAINER: nvidia/11.3.1-cudnn8-devel-ubuntu20.04
+        ROOT_CONTAINER: ubuntu:focal
+        CODE_SERVER_VERSION: ${CODE_SERVER_VERSION}
+        ARCH: amd64
+    expose:
+      - 8080
+    volumes:
+      - ${WORKSPACE_PATH}:/home/coder/project
+      - ./code-server/.config:/root/.config
+      - ./code-server/.extensions:/root/.local/share/code-server
+    # runtime: nvidia
+    ipc: host
+    user: root
+    networks:
+      - traefik-public
+    environment:
+      CHOWN_HOME: utf-8
+      PASSWORD: ${CODE_SERVER_PASSWORD}
+      # NVIDIA_VISIBLE_DEVICES: all
+      # NVIDIA_DRIVER_CAPABILITIES: all
+    restart: unless-stopped
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=${COMPOSE_PROJECT_NAME}_traefik-public
+      - traefik.constraint-label=traefik-public
+      - traefik.http.routers.code.rule=PathPrefix(`${BASE_URL}/code`)
+      # specific middleware rule for this service
+      - traefik.http.routers.code.middlewares=strip-prefix-1,strip-prefix-2
+      # add missing trailing slash
+      - traefik.http.middlewares.strip-prefix-1.redirectregex.regex=^(https?://[^/]+${BASE_URL}/[a-z0-9_]+)$$
+      - traefik.http.middlewares.strip-prefix-1.redirectregex.replacement=$${1}/
+      - traefik.http.middlewares.strip-prefix-1.redirectregex.permanent=true
+      - traefik.http.middlewares.strip-prefix-2.stripprefixregex.regex=${BASE_URL}/[a-z0-9_]+
+      # - traefik.http.routers.code.entrypoints=http
+      - traefik.http.services.code.loadbalancer.server.port=8080
+
+networks:
+  traefik-public:
