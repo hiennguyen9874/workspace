@@ -6,7 +6,7 @@ My workspace setup to using nvidia/cuda as root container for code-server and ju
 
 ### Sub domain
 
-- `docker-compose -f docker-compose.subdomain.yml --env-file .subdomain.env up` for subdomain version
+- `docker-compose -f docker-compose.subdomain.yml --env-file .subdomain.env up` 
 
 - [code.localhost](code.localhost): code-server
 - [jupyterlab.localhost](jupyterlab.localhost): jupyterlab
