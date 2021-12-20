@@ -32,15 +32,7 @@ services:
       - traefik.http.middlewares.limit.buffering.maxRequestBodyBytes=53687091200
 
   jupyterlab:
-    build:
-      context: jupyterlab
-      dockerfile: Dockerfile
-      args:
-        # https://gitlab.com/nvidia/container-images/cuda/blob/master/doc/supported-tags.md
-        # ROOT_CONTAINER: nvidia/11.3.1-cudnn8-devel-ubuntu20.04
-        ROOT_CONTAINER: ubuntu:focal
-        NB_USER: "hiennx"
-        NB_UID: 1001
+    image: hiennguyen9874/datascience-notebook:ubuntu20.04-py3.8-cpu-v0.1
     command:
       [
         "start-notebook.sh",
@@ -53,13 +45,11 @@ services:
     user: root
     ipc: host
     volumes:
-      - ${WORKSPACE_PATH}:/home/hiennx/workspace
+      - workspace-data:/home/jovyan/work
     networks:
       - traefik-public
     # runtime: nvidia
     environment:
-      NB_USER: "hiennx"
-      NB_UID: 1001
       CHOWN_HOME: "yes"
       JUPYTER_ENABLE_LAB: "yes"
       RESTARTABLE: "yes"
@@ -75,20 +65,13 @@ services:
       - traefik.http.services.jupyterlab.loadbalancer.server.port=8888
 
   code:
-    build:
-      context: code-server
-      dockerfile: Dockerfile
-      args:
-        # ROOT_CONTAINER: nvidia/11.3.1-cudnn8-devel-ubuntu20.04
-        ROOT_CONTAINER: ubuntu:focal
-        CODE_SERVER_VERSION: ${CODE_SERVER_VERSION}
-        ARCH: amd64
+    image: hiennguyen9874/code-server:ubuntu20.04-cpu-3.12.0
     expose:
       - 8080
     volumes:
-      - ${WORKSPACE_PATH}:/home/coder/project
-      - ./code-server/.config:/root/.config
-      - ./code-server/.extensions:/root/.local/share/code-server
+      - workspace-data:/home/coder/project
+      - code-config:/root/.config
+      - code-extension:/root/.local/share/code-server
     # runtime: nvidia
     ipc: host
     user: root
@@ -117,3 +100,8 @@ services:
 
 networks:
   traefik-public:
+
+volumes:
+  code-config:
+  code-extension:
+  workspace-data:

@@ -6,7 +6,7 @@ My workspace setup to using nvidia/cuda as root container for code-server and ju
 
 ### Sub domain
 
-- `docker-compose -f docker-compose.subdomain.yml --env-file .subdomain.env up` 
+- `docker-compose -f docker-compose.subdomain.yml --env-file .subdomain.env up`
 
 - [code.localhost](code.localhost): code-server
 - [jupyterlab.localhost](jupyterlab.localhost): jupyterlab
@@ -20,7 +20,7 @@ My workspace setup to using nvidia/cuda as root container for code-server and ju
 
 ## Cuda as root container
 
-- Change ROOT_CONTAINER to nvidia/11.3.1-cudnn8-devel-ubuntu20.04 (from [gitlab.com/nvidia/container-images/cuda/blob/master/doc/supported-tags.md](https://gitlab.com/nvidia/container-images/cuda/blob/master/doc/supported-tags.md)).
+- Change image to gpu-version.
 - un-comment: `runtime: nvidia`, `NVIDIA_VISIBLE_DEVICES: all`, `NVIDIA_DRIVER_CAPABILITIES: all`
 
 ### Password
