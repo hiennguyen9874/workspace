@@ -18,7 +18,7 @@ My workspace setup to using nvidia/cuda as root container for code-server and ju
 - [localhost/workspace/code](code.localhost): code-server
 - [localhost/workspace/jupyterlab](jupyterlab.localhost): jupyterlab
 
-## Cuda as root container
+## Cuda-version
 
 - Change image to gpu-version (from [hiennguyen9874/docker-stacks](https://github.com/hiennguyen9874/docker-stacks), [hiennguyen9874/code-server-docker](https://github.com/hiennguyen9874/code-server-docker)).
 - un-comment: `runtime: nvidia`, `NVIDIA_VISIBLE_DEVICES: all`, `NVIDIA_DRIVER_CAPABILITIES: all`
